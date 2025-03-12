@@ -1,0 +1,1497 @@
+===== n8n Knowledge Base for AI (Complete and Updated) =====
+
+# n8n Knowledge Base
+
+## Introduction to n8n
+
+n8n is a workflow automation tool that enables users to connect applications and services through a visual interface. Workflows in n8n consist of nodes that perform specific tasks, linked together to automate processes efficiently.
+
+### Key Concepts
+- **Workflows**: Sequences of nodes that execute in a defined order to automate tasks.
+- **Nodes**: Individual tasks or operations within a workflow (e.g., fetching data, processing information).
+- **Connections**: Define how data flows between nodes, linking the output of one node to the input of another.
+- **Credentials**: Store authentication details for nodes interacting with external services (e.g., API keys).
+
+---
+
+## Nodes in n8n
+
+Nodes are the building blocks of n8n workflows. Each node has specific properties that determine its behavior and role.
+
+### Node Properties
+- **name**: A unique identifier for the node. Must match keys used in the connections object.
+- **type**: Defines the node's function (e.g., `n8n-nodes-base.httpRequest` for HTTP requests, `@n8n/n8n-nodes-langchain.agent` for AI agents).
+- **parameters**: Task-specific settings (e.g., URLs for HTTP requests, prompts for AI agents).
+- **position**: Coordinates `[x, y]` for the node's placement in the visual editor.
+- **credentials**: Optional authentication references for external service interactions.
+
+### Common Node Types
+
+- **Trigger Nodes**:
+  - **Cron Trigger**: Runs on a schedule.
+    ```json
+    {
+      "id": "cron_node",
+      "type": "n8n-nodes-base.cron",
+      "name": "Cron Trigger",
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": "*",
+              "minute": "*/1"
+            }
+          ]
+        }
+      },
+      "position": [-460, 80]
+    }
+    ```
+  - **Chat Trigger**: Triggers on chat messages.
+    ```json
+    {
+      "id": "chat_trigger_node",
+      "type": "n8n-nodes-base.chatTrigger",
+      "name": "When Chat Message Received",
+      "position": [0, 0]
+    }
+    ```
+
+- **Action Nodes**:
+  - **HTTP Request**: Makes API calls.
+    ```json
+    {
+      "id": "http_request_node",
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Fetch Data",
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.example.com/data"
+      },
+      "position": [200, 0]
+    }
+    ```
+  - **Function**: Runs custom JavaScript.
+    ```json
+    {
+      "id": "function_node",
+      "type": "n8n-nodes-base.function",
+      "name": "Process Data",
+      "parameters": {
+        "functionCode": "return items.map(item => ({ json: { data: item.json.data + ' processed' } }));"
+      },
+      "position": [400, 0]
+    }
+    ```
+  - **Set**: Modifies fields.
+    ```json
+    {
+      "id": "set_node",
+      "type": "n8n-nodes-base.set",
+      "name": "Edit Fields",
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "{{ $json.message }}"
+            }
+          ]
+        }
+      },
+      "position": [100, 0]
+    }
+    ```
+  - **Merge**: Combines multiple inputs.
+    ```json
+    {
+      "id": "merge_node",
+      "type": "n8n-nodes-base.merge",
+      "name": "Merge Data",
+      "parameters": {
+        "numberInputs": 4
+      },
+      "position": [220, 40]
+    }
+    ```
+
+- **AI Nodes**:
+  - **AI Agent**: Executes AI tasks.
+    - **Type**: `@n8n/n8n-nodes-langchain.agent`
+    ```json
+    {
+      "id": "ai_agent_node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "name": "Decision Node",
+      "parameters": {
+        "text": "Analyze: {{ $json.trend }}"
+      },
+      "position": [1380, -200]
+    }
+    ```
+  - **Language Model (OpenRouter)**: Provides chat model functionality.
+    - **Type**: `@n8n/n8n-nodes-langchain.lmChatOpenRouter`
+    ```json
+    {
+      "id": "model_node",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "name": "OpenRouter Chat Model",
+      "parameters": {
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "options": {}
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "5TpQy7EgNnfMiFsZ",
+          "name": "OpenRouter account 3"
+        }
+      },
+      "position": [680, 40]
+    }
+    ```
+  - **Google Gemini Chat Model**: Chat model sub-node.
+    - **Type**: `n8n-nodes-langchain.modelgoogle`
+    ```json
+    {
+      "id": "model_node",
+      "type": "n8n-nodes-langchain.modelgoogle",
+      "name": "Google Gemini Chat Model",
+      "parameters": {
+        "apiKey": "YOUR_GEMINI_API_KEY",
+        "model": "gemini-pro"
+      },
+      "position": [600, 150]
+    }
+    ```
+  - **Chat Window Memory Buffer**: Stores conversation context.
+    - **Type**: `n8n-nodes-langchain.memorybuffer`
+    ```json
+    {
+      "id": "memory_node",
+      "type": "n8n-nodes-langchain.memorybuffer",
+      "name": "Chat Window Memory Buffer",
+      "parameters": {
+        "windowSize": 10
+      },
+      "position": [600, 300]
+    }
+    ```
+  - **SerpAPI Tool**: Web search tool for AI agents.
+    - **Type**: `n8n-nodes-langchain.toolserpapi`
+    ```json
+    {
+      "id": "tool_node",
+      "type": "n8n-nodes-langchain.toolserpapi",
+      "name": "SerpAPI",
+      "parameters": {
+        "apiKey": "YOUR_SERPAPI_API_KEY"
+      },
+      "position": [600, 450]
+    }
+    ```
+
+---
+
+## Connections
+
+Connections dictate the data flow between nodes and are defined in the `connections` object of the workflow JSON.
+
+### Correct Format
+
+- **Keys**: Must match the name of the source node exactly.
+- **Values**: Objects with output types (e.g., `main`, `ai_languageModel`), containing an array of arrays of connection objects.
+- **Connection Object**:
+  - **node**: The name of the target node.
+  - **type**: The input type of the target node (e.g., `main`, `ai_languageModel`).
+  - **index**: The input index (typically `0`).
+
+#### Example
+
+```json
+"connections": {
+  "SourceNode": {
+    "main": [
+      [
+        {
+          "node": "TargetNode",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    ]
+  }
+}
+Example with AI Agent and Language Model (from Your JSON)
+json
+Copy
+Edit
+"connections": {
+  "OpenRouter Chat Model": {
+    "ai_languageModel": [
+      [
+        {
+          "node": "Decision Node",
+          "type": "ai_languageModel",
+          "index": 0
+        }
+      ]
+    ]
+  }
+}
+Common Errors
+Arbitrary Keys: Using invalid keys (e.g., key1) instead of the node's name. This triggers errors like "connections[key21].forEach is not a function".
+Incorrect Structure: Missing arrays or improper nesting (e.g., using a single object instead of an array of arrays).
+Missing Nodes: Referencing non-existent nodes in connections.
+Fixes
+Use the exact name of the source node as the key.
+Follow the structure: object > array > array > object.
+Ensure all referenced nodes exist in the nodes array.
+AI Agents and Language Models
+AI agents (e.g., @n8n/n8n-nodes-langchain.agent) often require connections to language models or sub-nodes. Two configurations exist, based on your workflow and diagram:
+
+1. Separate Language Model Nodes
+Language models are separate nodes, connected via connections using the ai_languageModel type.
+Common in your JSON, where "Decision Node" relies on "OpenRouter Chat Model" nodes.
+Example (from your "1st Draft" JSON):
+
+json
+Copy
+Edit
+"nodes": [
+  {
+    "parameters": {
+      "model": "meta-llama/llama-3.3-70b-instruct:free",
+      "options": {}
+    },
+    "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+    "typeVersion": 1,
+    "position": [680, 40],
+    "id": "bff49ea1-4e5f-40bd-b955-cf51f385086f",
+    "name": "OpenRouter Chat Model2",
+    "credentials": {
+      "openRouterApi": {
+        "id": "5TpQy7EgNnfMiFsZ",
+        "name": "OpenRouter account 3"
+      }
+    }
+  },
+  {
+    "parameters": {
+      "text": "You are the Chief Decision LLM for BTC/USD. Use these 4 JSON objects:\nTrend: {{ $json.trend }}\nMomentum: {{ $json.momentum }}\nSentiment: {{ $json.sentiment }}\nRiskReward: {{ $json.riskReward }}\n\nMake a final trade call in EXACT JSON with:\n{\n  \"call\": \"LONG|SHORT|NEUTRAL\",\n  \"entry\": 0,\n  \"stopLoss\": 0,\n  \"takeProfit\": 0,\n  \"riskReward\": 2.0,\n  \"reason\": \"short rationale\"\n}\n\nNo disclaimers, code blocks, or triple backticks. If no trade, set call=NEUTRAL.",
+      "options": {}
+    },
+    "id": "dd3ebfbc-66e7-4f7d-9ee9-88e8a69d5267",
+    "type": "@n8n/n8n-nodes-langchain.agent",
+    "name": "Decision Node",
+    "typeVersion": 1,
+    "position": [1380, -200]
+  }
+],
+"connections": {
+  "OpenRouter Chat Model2": {
+    "ai_languageModel": [
+      [
+        {
+          "node": "Decision Node",
+          "type": "ai_languageModel",
+          "index": 0
+        }
+      ]
+    ]
+  }
+}
+2. Sub-Nodes in Parameters
+Models, memory, or tools are referenced directly in the parameters of the AI agent node.
+Matches your diagram, where the "Tools Agent" integrates Google Gemini (model), Chat Window Memory Buffer (memory), and SerpAPI (tool).
+Example (aligned with your diagram):
+
+json
+Copy
+Edit
+"nodes": [
+  {
+    "parameters": {
+      "triggerTimes": {
+        "item": [
+          {
+            "hour": "*",
+            "minute": "*/1"
+          }
+        ]
+      }
+    },
+    "id": "cron_node",
+    "type": "n8n-nodes-base.cron",
+    "name": "Cron Trigger",
+    "typeVersion": 1,
+    "position": [0, 0]
+  },
+  {
+    "parameters": {
+      "url": "https://tradingview.com/...",
+      "options": {}
+    },
+    "id": "http_request_node",
+    "type": "n8n-nodes-base.httpRequest",
+    "name": "TradingView Chart",
+    "typeVersion": 1,
+    "position": [200, 0]
+  },
+  {
+    "parameters": {
+      "agentType": "Tools Agent",
+      "model": {
+        "nodeId": "model_node"
+      },
+      "memory": {
+        "nodeId": "memory_node"
+      },
+      "tools": [
+        {
+          "nodeId": "tool_node"
+        }
+      ]
+    },
+    "id": "ai_agent_node",
+    "type": "@n8n/n8n-nodes-langchain.agent",
+    "name": "AI Agent",
+    "typeVersion": 1,
+    "position": [400, 0]
+  },
+  {
+    "parameters": {
+      "apiKey": "YOUR_GEMINI_API_KEY",
+      "model": "gemini-pro"
+    },
+    "id": "model_node",
+    "type": "n8n-nodes-langchain.modelgoogle",
+    "name": "Google Gemini Chat Model",
+    "typeVersion": 1,
+    "position": [400, 150]
+  },
+  {
+    "parameters": {
+      "windowSize": 10
+    },
+    "id": "memory_node",
+    "type": "n8n-nodes-langchain.memorybuffer",
+    "name": "Chat Window Memory Buffer",
+    "typeVersion": 1,
+    "position": [400, 300]
+  },
+  {
+    "parameters": {
+      "apiKey": "YOUR_SERPAPI_API_KEY"
+    },
+    "id": "tool_node",
+    "type": "n8n-nodes-langchain.toolserpapi",
+    "name": "SerpAPI",
+    "typeVersion": 1,
+    "position": [400, 450]
+  }
+],
+"connections": {
+  "Cron Trigger": {
+    "main": [
+      [
+        {
+          "node": "TradingView Chart",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    ]
+  },
+  "TradingView Chart": {
+    "main": [
+      [
+        {
+          "node": "AI Agent",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    ]
+  }
+}
+Key Notes
+
+Use the correct type for sub-nodes (e.g., n8n-nodes-langchain.modelgoogle, n8n-nodes-langchain.toolserpapi).
+Ensure credentials are set for models or tools requiring API keys (e.g., openRouterApi, apiKey for SerpAPI).
+Verify input data matches the prompt variables (e.g., {{ $json.trend }} requires trend in the input).
+For sub-node setups, define model, memory, and tools in the AI agent's parameters, using nodeId to reference sub-node IDs.
+Data Flow and Expressions
+Data flows through connections, and nodes access it using expressions.
+
+Usage
+Expressions reference data from previous nodes within parameters.
+
+Syntax: {{ $json.field }} or {{ $node["NodeName"].json.field }}
+Example:
+
+json
+Copy
+Edit
+"parameters": {
+  "text": "Analyze the trend: {{ $json.trend }}"
+}
+Assumes trend exists in the input data.
+
+Avoiding Errors
+Verify input data includes expected fields.
+Use proper syntax: {{ $json.field }}, not {{ field }}.
+If the entire parameter is an expression, some versions of n8n may require {{= $json.field }}.
+Best Practices
+Node Naming: Use descriptive names (e.g., "FetchMarketData" instead of "Node1").
+Modular Workflows: Split complex workflows into logical, connected sections.
+Test Incrementally: Use "Execute Node" to test outputs step-by-step.
+Error Handling: Check for missing data in responses (e.g., API calls) and use options like "continueOnFail": true.
+Debugging and Testing
+n8n offers tools to troubleshoot workflows effectively.
+
+Tools
+Execute Node: Test individual nodes and inspect input/output.
+Workflow Logs: Check execution logs in the UI for errors.
+JSON Validation: Validate workflow JSON before importing (e.g., using jsonlint.com if you have external access).
+AI-Specific Debugging
+Language Model Connections: Confirm connections and credential validity.
+Prompt Validation: Ensure prompts reference valid fields and outputs match expectations.
+Output Format: Verify AI nodes return the expected JSON structure (e.g., {"trend": "bullish", ...}).
+Example Workflows
+Example 1: AI-Driven Trading Workflow with Separate Language Models
+Based on a "1st Draft" JSON for a BTC trading bot, using separate language model nodes.
+
+json
+Copy
+Edit
+{
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": "*",
+              "minute": "*/1"
+            }
+          ]
+        }
+      },
+      "id": "b854fc1c-a722-44d2-82b1-9340bde182d3",
+      "type": "n8n-nodes-base.cron",
+      "name": "Cron Trigger",
+      "typeVersion": 1,
+      "position": [-460, 80]
+    },
+    {
+      "parameters": {
+        "url": "https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT",
+        "options": {}
+      },
+      "id": "00b77410-d9ed-4148-bba4-247caa753305",
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Fetch Chart Data",
+      "typeVersion": 1,
+      "position": [-40, -180]
+    },
+    {
+      "parameters": {
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [680, 40],
+      "id": "bff49ea1-4e5f-40bd-b955-cf51f385086f",
+      "name": "OpenRouter Chat Model2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "5TpQy7EgNnfMiFsZ",
+          "name": "OpenRouter account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "You are a Trend Analysis LLM. Interpret the variable \"chartData\": {{ $json.chartData }}"
+      },
+      "id": "e5d73b43-f6e5-4716-adfd-263d9da5f0b1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "name": "Trend Analysis LLM",
+      "typeVersion": 1,
+      "position": [640, -540]
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Chart Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Chart Data": {
+      "main": [
+        [
+          {
+            "node": "Trend Analysis LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Trend Analysis LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
+Example 2: AI Agent with Sub-Nodes (Based on Your Diagram)
+Shows an AI Agent "Tools Agent" with integrated sub-nodes (Google Gemini, Chat Window Memory Buffer, SerpAPI).
+
+json
+Copy
+Edit
+{
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": "*",
+              "minute": "*/1"
+            }
+          ]
+        }
+      },
+      "id": "cron_node",
+      "type": "n8n-nodes-base.cron",
+      "name": "Cron Trigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://tradingview.com/...",
+        "options": {}
+      },
+      "id": "http_request_node",
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "TradingView Chart",
+      "typeVersion": 1,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "agentType": "Tools Agent",
+        "model": {
+          "nodeId": "model_node"
+        },
+        "memory": {
+          "nodeId": "memory_node"
+        },
+        "tools": [
+          {
+            "nodeId": "tool_node"
+          }
+        ]
+      },
+      "id": "ai_agent_node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "name": "AI Agent",
+      "typeVersion": 1,
+      "position": [400, 0]
+    },
+    {
+      "parameters": {
+        "apiKey": "YOUR_GEMINI_API_KEY",
+        "model": "gemini-pro"
+      },
+      "id": "model_node",
+      "type": "n8n-nodes-langchain.modelgoogle",
+      "name": "Google Gemini Chat Model",
+      "typeVersion": 1,
+      "position": [400, 150]
+    },
+    {
+      "parameters": {
+        "windowSize": 10
+      },
+      "id": "memory_node",
+      "type": "n8n-nodes-langchain.memorybuffer",
+      "name": "Chat Window Memory Buffer",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "apiKey": "YOUR_SERPAPI_API_KEY"
+      },
+      "id": "tool_node",
+      "type": "n8n-nodes-langchain.toolserpapi",
+      "name": "SerpAPI",
+      "typeVersion": 1,
+      "position": [400, 450]
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "TradingView Chart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TradingView Chart": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
+Common Errors and Fixes
+Error: "connections[key21].forEach is not a function"
+
+Cause: Invalid key in connections (e.g., key21) or incorrect value structure.
+Fix: Use the node’s name as the key and ensure proper nesting.
+Incorrect:
+
+json
+Copy
+Edit
+"connections": {
+  "key1": {
+    "main": [
+      {
+        "node": "TargetNode",
+        "type": "main",
+        "index": 0
+      }
+    ]
+  }
+}
+Correct:
+
+json
+Copy
+Edit
+"connections": {
+  "SourceNode": {
+    "main": [
+      [
+        {
+          "node": "TargetNode",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    ]
+  }
+}
+Error: Missing Node Reference
+
+Cause: connections references a non-existent node.
+Fix: Match every node value to a name in the nodes array.
+Error: Incorrect Data Input for AI Agents
+
+Cause: AI agent prompt references missing or incorrect fields (e.g., {{ $json.trend }} when trend isn’t in input).
+Fix: Ensure input data contains required fields and matches prompt expectations.
+Best Practices
+Node Naming: Use descriptive names (e.g., "FetchMarketData" instead of "Node1").
+Modular Workflows: Split complex workflows into logical, connected sections.
+Test Incrementally: Use "Execute Node" to test outputs step-by-step.
+Error Handling: Check for missing data in responses (e.g., API calls) and use options like "continueOnFail": true.
+Debugging and Testing
+n8n offers tools to troubleshoot workflows effectively.
+
+Tools
+Execute Node: Test individual nodes and inspect input/output.
+Workflow Logs: Check execution logs in the UI for errors.
+JSON Validation: Validate workflow JSON before importing.
+AI-Specific Debugging
+Language Model Connections: Confirm connections and credential validity.
+Prompt Validation: Ensure prompts reference valid fields and outputs match expectations.
+Output Format: Verify AI nodes return the expected JSON structure.
+How to Use This Knowledge Base
+Upload: Save this as a .txt file and upload it to your system.
+Instruct GPT: Use it as a reference for generating workflows (e.g., “Use the n8n Knowledge Base to create a JSON workflow”).
+Debugging: Consult relevant sections for troubleshooting (e.g., “Connections” for formatting issues).
+This knowledge base ensures GPT can generate flawless n8n JSON workflows by providing all necessary details, examples, and error fixes.
+
+===== End of n8n Knowledge Base =====
+
+Copy
+Edit
+You said:
+Can u write every single thing in a wrapperr?
+Reasoned about n8n knowledge base wrapper for 8 seconds
+pgsql
+Copy
+Edit
+===== n8n Knowledge Base for AI (Complete and Updated) =====
+
+# n8n Knowledge Base
+
+## Introduction to n8n
+
+n8n is a workflow automation tool that enables users to connect applications and services through a visual interface. Workflows in n8n consist of nodes that perform specific tasks, linked together to automate processes efficiently.
+
+### Key Concepts
+- **Workflows**: Sequences of nodes that execute in a defined order to automate tasks.
+- **Nodes**: Individual tasks or operations within a workflow (e.g., fetching data, processing information).
+- **Connections**: Define how data flows between nodes, linking the output of one node to the input of another.
+- **Credentials**: Store authentication details for nodes interacting with external services (e.g., API keys).
+
+---
+
+## Nodes in n8n
+
+Nodes are the building blocks of n8n workflows. Each node has specific properties that determine its behavior and role.
+
+### Node Properties
+- **name**: A unique identifier for the node. Must match keys used in the connections object.
+- **type**: Defines the node's function (e.g., `n8n-nodes-base.httpRequest` for HTTP requests, `@n8n/n8n-nodes-langchain.agent` for AI agents).
+- **parameters**: Task-specific settings (e.g., URLs for HTTP requests, prompts for AI agents).
+- **position**: Coordinates `[x, y]` for the node's placement in the visual editor.
+- **credentials**: Optional authentication references for external service interactions.
+
+### Common Node Types
+
+- **Trigger Nodes**:
+  - **Cron Trigger**: Runs on a schedule.
+    ```json
+    {
+      "id": "cron_node",
+      "type": "n8n-nodes-base.cron",
+      "name": "Cron Trigger",
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": "*",
+              "minute": "*/1"
+            }
+          ]
+        }
+      },
+      "position": [-460, 80]
+    }
+    ```
+  - **Chat Trigger**: Triggers on chat messages.
+    ```json
+    {
+      "id": "chat_trigger_node",
+      "type": "n8n-nodes-base.chatTrigger",
+      "name": "When Chat Message Received",
+      "position": [0, 0]
+    }
+    ```
+
+- **Action Nodes**:
+  - **HTTP Request**: Makes API calls.
+    ```json
+    {
+      "id": "http_request_node",
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Fetch Data",
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.example.com/data"
+      },
+      "position": [200, 0]
+    }
+    ```
+  - **Function**: Runs custom JavaScript.
+    ```json
+    {
+      "id": "function_node",
+      "type": "n8n-nodes-base.function",
+      "name": "Process Data",
+      "parameters": {
+        "functionCode": "return items.map(item => ({ json: { data: item.json.data + ' processed' } }));"
+      },
+      "position": [400, 0]
+    }
+    ```
+  - **Set**: Modifies fields.
+    ```json
+    {
+      "id": "set_node",
+      "type": "n8n-nodes-base.set",
+      "name": "Edit Fields",
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "{{ $json.message }}"
+            }
+          ]
+        }
+      },
+      "position": [100, 0]
+    }
+    ```
+  - **Merge**: Combines multiple inputs.
+    ```json
+    {
+      "id": "merge_node",
+      "type": "n8n-nodes-base.merge",
+      "name": "Merge Data",
+      "parameters": {
+        "numberInputs": 4
+      },
+      "position": [220, 40]
+    }
+    ```
+
+- **AI Nodes**:
+  - **AI Agent**: Executes AI tasks.
+    - **Type**: `@n8n/n8n-nodes-langchain.agent`
+    ```json
+    {
+      "id": "ai_agent_node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "name": "Decision Node",
+      "parameters": {
+        "text": "Analyze: {{ $json.trend }}"
+      },
+      "position": [1380, -200]
+    }
+    ```
+  - **Language Model (OpenRouter)**: Provides chat model functionality.
+    - **Type**: `@n8n/n8n-nodes-langchain.lmChatOpenRouter`
+    ```json
+    {
+      "id": "model_node",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "name": "OpenRouter Chat Model",
+      "parameters": {
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "options": {}
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "5TpQy7EgNnfMiFsZ",
+          "name": "OpenRouter account 3"
+        }
+      },
+      "position": [680, 40]
+    }
+    ```
+  - **Google Gemini Chat Model**: Chat model sub-node.
+    - **Type**: `n8n-nodes-langchain.modelgoogle`
+    ```json
+    {
+      "id": "model_node",
+      "type": "n8n-nodes-langchain.modelgoogle",
+      "name": "Google Gemini Chat Model",
+      "parameters": {
+        "apiKey": "YOUR_GEMINI_API_KEY",
+        "model": "gemini-pro"
+      },
+      "position": [600, 150]
+    }
+    ```
+  - **Chat Window Memory Buffer**: Stores conversation context.
+    - **Type**: `n8n-nodes-langchain.memorybuffer`
+    ```json
+    {
+      "id": "memory_node",
+      "type": "n8n-nodes-langchain.memorybuffer",
+      "name": "Chat Window Memory Buffer",
+      "parameters": {
+        "windowSize": 10
+      },
+      "position": [600, 300]
+    }
+    ```
+  - **SerpAPI Tool**: Web search tool for AI agents.
+    - **Type**: `n8n-nodes-langchain.toolserpapi`
+    ```json
+    {
+      "id": "tool_node",
+      "type": "n8n-nodes-langchain.toolserpapi",
+      "name": "SerpAPI",
+      "parameters": {
+        "apiKey": "YOUR_SERPAPI_API_KEY"
+      },
+      "position": [600, 450]
+    }
+    ```
+
+---
+
+## Connections
+
+Connections dictate the data flow between nodes and are defined in the `connections` object of the workflow JSON.
+
+### Correct Format
+
+- **Keys**: Must match the name of the source node exactly.
+- **Values**: Objects with output types (e.g., `main`, `ai_languageModel`), containing an array of arrays of connection objects.
+- **Connection Object**:
+  - **node**: The name of the target node.
+  - **type**: The input type of the target node (e.g., `main`, `ai_languageModel`).
+  - **index**: The input index (typically `0`).
+
+#### Example
+
+```json
+"connections": {
+  "SourceNode": {
+    "main": [
+      [
+        {
+          "node": "TargetNode",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    ]
+  }
+}
+Example with AI Agent and Language Model (from Your JSON)
+json
+Copy
+Edit
+"connections": {
+  "OpenRouter Chat Model": {
+    "ai_languageModel": [
+      [
+        {
+          "node": "Decision Node",
+          "type": "ai_languageModel",
+          "index": 0
+        }
+      ]
+    ]
+  }
+}
+Common Errors
+Arbitrary Keys: Using invalid keys (e.g., key1) instead of the node's name. This triggers errors like "connections[key21].forEach is not a function".
+Incorrect Structure: Missing arrays or improper nesting (e.g., using a single object instead of an array of arrays).
+Missing Nodes: Referencing non-existent nodes in connections.
+Fixes
+Use the exact name of the source node as the key.
+Follow the structure: object > array > array > object.
+Ensure all referenced nodes exist in the nodes array.
+AI Agents and Language Models
+AI agents (e.g., @n8n/n8n-nodes-langchain.agent) often require connections to language models or sub-nodes. Two configurations exist, based on your workflow and diagram:
+
+1. Separate Language Model Nodes
+Language models are separate nodes, connected via connections using the ai_languageModel type.
+Common in your JSON, where "Decision Node" relies on "OpenRouter Chat Model" nodes.
+Example (from your "1st Draft" JSON):
+
+json
+Copy
+Edit
+"nodes": [
+  {
+    "parameters": {
+      "model": "meta-llama/llama-3.3-70b-instruct:free",
+      "options": {}
+    },
+    "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+    "typeVersion": 1,
+    "position": [680, 40],
+    "id": "bff49ea1-4e5f-40bd-b955-cf51f385086f",
+    "name": "OpenRouter Chat Model2",
+    "credentials": {
+      "openRouterApi": {
+        "id": "5TpQy7EgNnfMiFsZ",
+        "name": "OpenRouter account 3"
+      }
+    }
+  },
+  {
+    "parameters": {
+      "text": "You are the Chief Decision LLM for BTC/USD. Use these 4 JSON objects:\nTrend: {{ $json.trend }}\nMomentum: {{ $json.momentum }}\nSentiment: {{ $json.sentiment }}\nRiskReward: {{ $json.riskReward }}\n\nMake a final trade call in EXACT JSON with:\n{\n  \"call\": \"LONG|SHORT|NEUTRAL\",\n  \"entry\": 0,\n  \"stopLoss\": 0,\n  \"takeProfit\": 0,\n  \"riskReward\": 2.0,\n  \"reason\": \"short rationale\"\n}\n\nNo disclaimers, code blocks, or triple backticks. If no trade, set call=NEUTRAL.",
+      "options": {}
+    },
+    "id": "dd3ebfbc-66e7-4f7d-9ee9-88e8a69d5267",
+    "type": "@n8n/n8n-nodes-langchain.agent",
+    "name": "Decision Node",
+    "typeVersion": 1,
+    "position": [1380, -200]
+  }
+],
+"connections": {
+  "OpenRouter Chat Model2": {
+    "ai_languageModel": [
+      [
+        {
+          "node": "Decision Node",
+          "type": "ai_languageModel",
+          "index": 0
+        }
+      ]
+    ]
+  }
+}
+2. Sub-Nodes in Parameters
+Models, memory, or tools are referenced directly in the parameters of the AI agent node.
+Matches your diagram, where the "Tools Agent" integrates Google Gemini (model), Chat Window Memory Buffer (memory), and SerpAPI (tool).
+Example (aligned with your diagram):
+
+json
+Copy
+Edit
+"nodes": [
+  {
+    "parameters": {
+      "triggerTimes": {
+        "item": [
+          {
+            "hour": "*",
+            "minute": "*/1"
+          }
+        ]
+      }
+    },
+    "id": "cron_node",
+    "type": "n8n-nodes-base.cron",
+    "name": "Cron Trigger",
+    "typeVersion": 1,
+    "position": [0, 0]
+  },
+  {
+    "parameters": {
+      "url": "https://tradingview.com/...",
+      "options": {}
+    },
+    "id": "http_request_node",
+    "type": "n8n-nodes-base.httpRequest",
+    "name": "TradingView Chart",
+    "typeVersion": 1,
+    "position": [200, 0]
+  },
+  {
+    "parameters": {
+      "agentType": "Tools Agent",
+      "model": {
+        "nodeId": "model_node"
+      },
+      "memory": {
+        "nodeId": "memory_node"
+      },
+      "tools": [
+        {
+          "nodeId": "tool_node"
+        }
+      ]
+    },
+    "id": "ai_agent_node",
+    "type": "@n8n/n8n-nodes-langchain.agent",
+    "name": "AI Agent",
+    "typeVersion": 1,
+    "position": [400, 0]
+  },
+  {
+    "parameters": {
+      "apiKey": "YOUR_GEMINI_API_KEY",
+      "model": "gemini-pro"
+    },
+    "id": "model_node",
+    "type": "n8n-nodes-langchain.modelgoogle",
+    "name": "Google Gemini Chat Model",
+    "typeVersion": 1,
+    "position": [400, 150]
+  },
+  {
+    "parameters": {
+      "windowSize": 10
+    },
+    "id": "memory_node",
+    "type": "n8n-nodes-langchain.memorybuffer",
+    "name": "Chat Window Memory Buffer",
+    "typeVersion": 1,
+    "position": [400, 300]
+  },
+  {
+    "parameters": {
+      "apiKey": "YOUR_SERPAPI_API_KEY"
+    },
+    "id": "tool_node",
+    "type": "n8n-nodes-langchain.toolserpapi",
+    "name": "SerpAPI",
+    "typeVersion": 1,
+    "position": [400, 450]
+  }
+],
+"connections": {
+  "Cron Trigger": {
+    "main": [
+      [
+        {
+          "node": "TradingView Chart",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    ]
+  },
+  "TradingView Chart": {
+    "main": [
+      [
+        {
+          "node": "AI Agent",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    ]
+  }
+}
+Key Notes
+
+Use the correct type for sub-nodes (e.g., n8n-nodes-langchain.modelgoogle, n8n-nodes-langchain.toolserpapi).
+Ensure credentials are set for models or tools requiring API keys (e.g., openRouterApi, apiKey for SerpAPI).
+Verify input data matches the prompt variables (e.g., {{ $json.trend }} requires trend in the input).
+For sub-node setups, define model, memory, and tools in the AI agent's parameters, using nodeId to reference sub-node IDs.
+Data Flow and Expressions
+Data flows through connections, and nodes access it using expressions.
+
+Usage
+Expressions reference data from previous nodes within parameters.
+
+Syntax: {{ $json.field }} or {{ $node["NodeName"].json.field }}
+Example:
+
+json
+Copy
+Edit
+"parameters": {
+  "text": "Analyze the trend: {{ $json.trend }}"
+}
+Assumes trend exists in the input data.
+
+Avoiding Errors
+Verify input data includes expected fields.
+Use proper syntax: {{ $json.field }}, not {{ field }}.
+If the entire parameter is an expression, some versions of n8n may require {{= $json.field }}.
+Best Practices
+Node Naming: Use descriptive names (e.g., "FetchMarketData" instead of "Node1").
+Modular Workflows: Split complex workflows into logical, connected sections.
+Test Incrementally: Use "Execute Node" to test outputs step-by-step.
+Error Handling: Check for missing data in responses (e.g., API calls) and use options like "continueOnFail": true.
+Debugging and Testing
+n8n offers tools to troubleshoot workflows effectively.
+
+Tools
+Execute Node: Test individual nodes and inspect input/output.
+Workflow Logs: Check execution logs in the UI for errors.
+JSON Validation: Validate workflow JSON before importing (e.g., using jsonlint.com if you have external access).
+AI-Specific Debugging
+Language Model Connections: Confirm connections and credential validity.
+Prompt Validation: Ensure prompts reference valid fields and outputs match expectations.
+Output Format: Verify AI nodes return the expected JSON structure (e.g., {"trend": "bullish", ...}).
+Example Workflows
+Example 1: AI-Driven Trading Workflow with Separate Language Models
+Based on a "1st Draft" JSON for a BTC trading bot, using separate language model nodes.
+
+json
+Copy
+Edit
+{
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": "*",
+              "minute": "*/1"
+            }
+          ]
+        }
+      },
+      "id": "b854fc1c-a722-44d2-82b1-9340bde182d3",
+      "type": "n8n-nodes-base.cron",
+      "name": "Cron Trigger",
+      "typeVersion": 1,
+      "position": [-460, 80]
+    },
+    {
+      "parameters": {
+        "url": "https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT",
+        "options": {}
+      },
+      "id": "00b77410-d9ed-4148-bba4-247caa753305",
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Fetch Chart Data",
+      "typeVersion": 1,
+      "position": [-40, -180]
+    },
+    {
+      "parameters": {
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [680, 40],
+      "id": "bff49ea1-4e5f-40bd-b955-cf51f385086f",
+      "name": "OpenRouter Chat Model2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "5TpQy7EgNnfMiFsZ",
+          "name": "OpenRouter account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "You are a Trend Analysis LLM. Interpret the variable \"chartData\": {{ $json.chartData }}"
+      },
+      "id": "e5d73b43-f6e5-4716-adfd-263d9da5f0b1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "name": "Trend Analysis LLM",
+      "typeVersion": 1,
+      "position": [640, -540]
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Chart Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Chart Data": {
+      "main": [
+        [
+          {
+            "node": "Trend Analysis LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Trend Analysis LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
+Example 2: AI Agent with Sub-Nodes (Based on Your Diagram)
+Shows an AI Agent "Tools Agent" with integrated sub-nodes (Google Gemini, Chat Window Memory Buffer, SerpAPI).
+
+json
+Copy
+Edit
+{
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": "*",
+              "minute": "*/1"
+            }
+          ]
+        }
+      },
+      "id": "cron_node",
+      "type": "n8n-nodes-base.cron",
+      "name": "Cron Trigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://tradingview.com/...",
+        "options": {}
+      },
+      "id": "http_request_node",
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "TradingView Chart",
+      "typeVersion": 1,
+      "position": [200, 0]
+    },
+    {
+      "parameters": {
+        "agentType": "Tools Agent",
+        "model": {
+          "nodeId": "model_node"
+        },
+        "memory": {
+          "nodeId": "memory_node"
+        },
+        "tools": [
+          {
+            "nodeId": "tool_node"
+          }
+        ]
+      },
+      "id": "ai_agent_node",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "name": "AI Agent",
+      "typeVersion": 1,
+      "position": [400, 0]
+    },
+    {
+      "parameters": {
+        "apiKey": "YOUR_GEMINI_API_KEY",
+        "model": "gemini-pro"
+      },
+      "id": "model_node",
+      "type": "n8n-nodes-langchain.modelgoogle",
+      "name": "Google Gemini Chat Model",
+      "typeVersion": 1,
+      "position": [400, 150]
+    },
+    {
+      "parameters": {
+        "windowSize": 10
+      },
+      "id": "memory_node",
+      "type": "n8n-nodes-langchain.memorybuffer",
+      "name": "Chat Window Memory Buffer",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "apiKey": "YOUR_SERPAPI_API_KEY"
+      },
+      "id": "tool_node",
+      "type": "n8n-nodes-langchain.toolserpapi",
+      "name": "SerpAPI",
+      "typeVersion": 1,
+      "position": [400, 450]
+    }
+  ],
+  "connections": {
+    "Cron Trigger": {
+      "main": [
+        [
+          {
+            "node": "TradingView Chart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TradingView Chart": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
+Common Errors and Fixes
+Error: "connections[key21].forEach is not a function"
+
+Cause: Invalid key in connections (e.g., key21) or incorrect value structure.
+Fix: Use the node’s name as the key and ensure proper nesting.
+Incorrect:
+
+json
+Copy
+Edit
+"connections": {
+  "key1": {
+    "main": [
+      {
+        "node": "TargetNode",
+        "type": "main",
+        "index": 0
+      }
+    ]
+  }
+}
+Correct:
+
+json
+Copy
+Edit
+"connections": {
+  "SourceNode": {
+    "main": [
+      [
+        {
+          "node": "TargetNode",
+          "type": "main",
+          "index": 0
+        }
+      ]
+    ]
+  }
+}
+Error: Missing Node Reference
+
+Cause: connections references a non-existent node.
+Fix: Match every node value to a name in the nodes array.
+Error: Incorrect Data Input for AI Agents
+
+Cause: AI agent prompt references missing or incorrect fields (e.g., {{ $json.trend }} when trend isn’t in input).
+Fix: Ensure input data contains required fields and matches prompt expectations.
+Best Practices
+Node Naming: Use descriptive names (e.g., "FetchMarketData" instead of "Node1").
+Modular Workflows: Split complex workflows into logical, connected sections.
+Test Incrementally: Use "Execute Node" to test outputs step-by-step.
+Error Handling: Check for missing data in responses (e.g., API calls) and use options like "continueOnFail": true.
+Debugging and Testing
+n8n offers tools to troubleshoot workflows effectively.
+
+Tools
+Execute Node: Test individual nodes and inspect input/output.
+Workflow Logs: Check execution logs in the UI for errors.
+JSON Validation: Validate workflow JSON before importing.
+AI-Specific Debugging
+Language Model Connections: Confirm connections and credential validity.
+Prompt Validation: Ensure prompts reference valid fields and outputs match expectations.
+Output Format: Verify AI nodes return the expected JSON structure.
+How to Use This Knowledge Base
+Upload: Save this as a .txt file and upload it to your system.
+Instruct GPT: Use it as a reference for generating workflows (e.g., “Use the n8n Knowledge Base to create a JSON workflow”).
+Debugging: Consult relevant sections for troubleshooting (e.g., “Connections” for formatting issues).
+This knowledge base ensures GPT can generate flawless n8n JSON workflows by providing all necessary details, examples, and error fixes.
+
+===== End of n8n Knowledge Base =====
